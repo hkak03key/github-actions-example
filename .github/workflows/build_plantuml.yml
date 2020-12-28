@@ -1,0 +1,88 @@
+name: push-plantuml-image
+
+#---------------------------------
+# Controls when the action will run.
+on:
+  pull_request:
+    paths:
+    - '**.pu'
+    - '**.plantuml'
+    types: [ opened, reopened, synchronize]
+
+  workflow_dispatch:
+
+
+#---------------------------------
+jobs:
+  #-------------------------------
+  build-plantuml:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: checkout-head
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: prepare-github
+        env:
+          GIT_USER_NAME: ${{ github.workflow }}
+          GIT_USER_EMAIL: hkak03key@gmail.com
+        run: |
+          # for commit
+          git config --global user.name  $GIT_USER_NAME
+          git config --global user.email $GIT_USER_EMAIL
+          # for git diff ...
+          git fetch --unshallow origin ${{ github.head_ref }}
+          git fetch origin ${{ github.base_ref }}
+
+      - name: install-requirement-tools
+        env:
+          PLANTUML_URL: https://sourceforge.net/projects/plantuml/files/plantuml.1.2020.26.jar
+          FONT_URL: https://ja.osdn.net/downloads/users/8/8637/genshingothic-20150607.zip/
+        run: |
+          # plantuml
+          (cd /usr/local/lib && sudo curl -L $PLANTUML_URL -o plantuml.jar )
+          printf "#!/bin/sh\njava -jar /usr/local/lib/plantuml.jar \$*" | sudo tee /usr/local/bin/plantuml
+          sudo chmod +x /usr/local/bin/plantuml
+          sudo apt-get update
+          # graphviz
+          sudo apt-get install -y graphviz # plantuml
+          # font
+          mkdir ~/.fonts
+          (cd /tmp && curl -L $FONT_URL -o font.zip)
+          unzip /tmp/font.zip -d ~/.fonts
+          fc-cache
+          plantuml -printfonts
+          sudo update-locale LANG=ja_JP.UTF-8
+
+
+      - name: create-plantuml-image
+        run: |
+          git diff --diff-filter=dr --name-only origin/${{ github.base_ref }}... \
+            | grep -E ".*\.(pu|plantuml)$" \
+            | xargs --no-run-if-empty -I {} sh -c "echo \"process: {}\" && plantuml -charset UTF-8 {}"
+          locale
+
+      - name: delete-plantuml-image
+        run: |
+          git diff --diff-filter=DR --name-only origin/${{ github.base_ref }}... \
+            | grep -E ".*\.(pu|plantuml)$" \
+            | sed -E "s/\.(pu|plantuml)$/.png/g" \
+            | xargs --no-run-if-empty -I {} sh -c "echo \"remove: {}\" && rm {}"
+
+      - name: check-diff
+        id: check-diff
+        run: |
+          CNT=$(( $(git ls-files --others --exclude-standard | wc -l) + $(git diff --name-only | wc -l) ))
+          echo "changed files: $CNT"
+          echo "::set-output name=is-push::$CNT"
+
+      - name: push-to-git
+        if: steps.check-diff.outputs.is-push > 0
+        run: |
+          git add -A *.png
+          git commit -m "update plantuml image"
+          git push origin HEAD
+ 
+

@@ -1,0 +1,12 @@
+version: '3'
+services:
+  test:
+    build: .
+    tty: true
+    volumes:
+      - ../plantuml:/tmp/plantuml
+    entrypoint: bash -c
+    #working_dir: /root
+    command: echo "ttestst"
+    #command: go run main.go
+    #entrypoint: sh
