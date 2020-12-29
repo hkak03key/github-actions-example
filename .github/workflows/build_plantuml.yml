@@ -18,7 +18,11 @@ jobs:
   build-plantuml:
     runs-on: ubuntu-18.04
     env:
+      GIT_USER_NAME: ${{ github.workflow }}
+      GIT_USER_EMAIL: hkak03key@gmail.com
+      PLANTUML_URL: https://sourceforge.net/projects/plantuml/files/plantuml.1.2020.26.jar
       PLANTUML_FORMAT: svg
+      FONT_URL: https://ja.osdn.net/downloads/users/8/8637/genshingothic-20150607.zip/
 
     steps:
       - name: checkout-head
@@ -27,9 +31,6 @@ jobs:
           ref: ${{ github.head_ref }}
 
       - name: prepare-github
-        env:
-          GIT_USER_NAME: ${{ github.workflow }}
-          GIT_USER_EMAIL: hkak03key@gmail.com
         run: |
           # for commit
           git config --global user.name  $GIT_USER_NAME
@@ -39,9 +40,6 @@ jobs:
           git fetch origin ${{ github.base_ref }}
 
       - name: install-requirement-tools
-        env:
-          PLANTUML_URL: https://sourceforge.net/projects/plantuml/files/plantuml.1.2020.26.jar
-          FONT_URL: https://ja.osdn.net/downloads/users/8/8637/genshingothic-20150607.zip/
         run: |
           # plantuml
           (cd /usr/local/lib && sudo curl -L $PLANTUML_URL -o plantuml.jar )
@@ -60,14 +58,14 @@ jobs:
         run: |
           git diff --diff-filter=dr --name-only origin/${{ github.base_ref }}... \
             | grep -E ".*\.(pu|plantuml)$" \
-            | xargs --no-run-if-empty -I {} sh -c "echo \"process: {}\" && plantuml -t$PLANTUML_FORMAT -charset UTF-8 {}"
+            | xargs --no-run-if-empty -L 1 -P 8 -I {} sh -c "echo \"process: {}\" && plantuml -t$PLANTUML_FORMAT -charset UTF-8 {}"
 
       - name: delete-plantuml-image
         run: |
           git diff --diff-filter=DR --name-only origin/${{ github.base_ref }}... \
             | grep -E ".*\.(pu|plantuml)$" \
             | sed -E "s/\.(pu|plantuml)$/.$PLANTUML_FORMAT/g" \
-            | xargs --no-run-if-empty -I {} sh -c "echo \"remove: {}\" && rm {}"
+            | xargs --no-run-if-empty -L 1 -P 8 -I {} sh -c "echo \"remove: {}\" && rm {}"
 
       - name: check-diff
         id: check-diff
