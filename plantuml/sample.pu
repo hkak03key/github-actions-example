@@ -1,6 +1,6 @@
 @startuml
 skinparam dpi 300
-skinparam DefaultFontName Gen Shin Gothic P Regular
+' skinparam DefaultFontName Gen Shin Gothic P Regular
 start
 :要件定義;
 :基本設計;

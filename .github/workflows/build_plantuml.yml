@@ -17,6 +17,8 @@ jobs:
   #-------------------------------
   build-plantuml:
     runs-on: ubuntu-18.04
+    env:
+      PLANTUML_FORMAT: svg
 
     steps:
       - name: checkout-head
@@ -53,22 +55,18 @@ jobs:
           (cd /tmp && curl -L $FONT_URL -o font.zip)
           unzip /tmp/font.zip -d ~/.fonts
           fc-cache
-          plantuml -printfonts
-          sudo update-locale LANG=ja_JP.UTF-8
-
 
       - name: create-plantuml-image
         run: |
           git diff --diff-filter=dr --name-only origin/${{ github.base_ref }}... \
             | grep -E ".*\.(pu|plantuml)$" \
-            | xargs --no-run-if-empty -I {} sh -c "echo \"process: {}\" && plantuml -charset UTF-8 {}"
-          locale
+            | xargs --no-run-if-empty -I {} sh -c "echo \"process: {}\" && plantuml -t$PLANTUML_FORMAT -charset UTF-8 {}"
 
       - name: delete-plantuml-image
         run: |
           git diff --diff-filter=DR --name-only origin/${{ github.base_ref }}... \
             | grep -E ".*\.(pu|plantuml)$" \
-            | sed -E "s/\.(pu|plantuml)$/.png/g" \
+            | sed -E "s/\.(pu|plantuml)$/.$PLANTUML_FORMAT/g" \
             | xargs --no-run-if-empty -I {} sh -c "echo \"remove: {}\" && rm {}"
 
       - name: check-diff
@@ -81,7 +79,7 @@ jobs:
       - name: push-to-git
         if: steps.check-diff.outputs.is-push > 0
         run: |
-          git add -A *.png
+          git add -A *.$PLANTUML_FORMAT
           git commit -m "update plantuml image"
           git push origin HEAD
  
